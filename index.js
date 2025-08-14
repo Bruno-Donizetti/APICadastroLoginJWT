@@ -15,11 +15,13 @@ const bcrypt = require('bcrypt');
 // Classes
 const Usuario = require('./models/Usuarios')
 
+//cors
+const cors = require('cors');
 // EXPRESS
 const express = require('express');
 const app = express();
 app.use(express.json());
-
+app.use(cors());
 // MONGODB
 
 const {MongoClient, ObjectId} = require('mongodb');
@@ -64,11 +66,11 @@ app.post('/cadastrar', async (req, res) => {
     }
 })
 
-app.get('/login', async (req, res) => {
+app.post('/login', async (req, res) => {
     const {usuario, senha} = req.body;
 
     if (!usuario || !senha) {
-        return res.send("Preencha todos os campos.")
+        return res.json({ message : "Preencha todos os campos."});
     }
 
     const db = client.db(DB_NAME);
@@ -77,7 +79,7 @@ app.get('/login', async (req, res) => {
     let count = await collection.countDocuments({usuario : usuario});
 
     if (count == 0) {
-        return res.send('Usuario ou senha inválidos.')
+        return res.json({message : 'Usuario ou senha inválidos.'})
     }
 
     let dados = await collection.findOne({usuario : usuario});
@@ -87,10 +89,10 @@ app.get('/login', async (req, res) => {
     if (verify) {
         let token = jwt.sign({_id: dados._id}, JWT_SECRET, {expiresIn: '1h'});
 
-        return res.send(token);
+        return res.json({message : token});
     }
 
-    res.send("Usuario ou senha inválidos");
+    res.json({message : "Usuario ou senha inválidos"});
 })
 
 app.get('/dados', async (req, res) => {
