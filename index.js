@@ -36,9 +36,13 @@ const escape = require('html-escape');
 
 // ROTAS
 app.post('/cadastrar', async (req, res) => {
-    const {usuario, senha, descricao} = req.body;
-    if (!usuario || !senha || !descricao) {
-        return res.send("Preencha todos os campos.")
+    const {usuario, senha, confirmarSenha, descricao} = req.body;
+    if (!usuario || !senha || !confirmarSenha || !descricao) {
+        return res.status(400).json({message:"Preencha todos os campos."});
+    }
+
+    if (senha != confirmarSenha) {
+        return res.status(400).json({message:"As senhas não são iguais."});
     }
 
     let descricaoEscape = escape(descricao);
@@ -51,26 +55,23 @@ app.post('/cadastrar', async (req, res) => {
     let count = await collection.countDocuments({usuario: usuario});
 
     if (count > 0) {
-        return res.send("Usuario existente, tente outro.")
+        return res.status(409).json({message:"Usuario existente, tente outro."});
     }
 
     try {
         await collection.insertOne(dados);
-
-        console.log("DADOS ADICIONADO AO BANCO!");
-        res.send("Dados adicionado com sucesso!")
-        
+        res.status(201).json({message:"Usuario cadastrado com sucesso!"});
     } catch (error) {
         console.log(`ERRO AO ADICIONAR USUARIO:\n${error}`);
-        res.send("Erro ao adicionar usuario.")
+        res.status(500).json({message:"Erro ao adicionar usuario."});
     }
-})
+});
 
 app.post('/login', async (req, res) => {
     const {usuario, senha} = req.body;
 
     if (!usuario || !senha) {
-        return res.json({ message : "Preencha todos os campos."});
+        return res.status(400).json({ message : "Preencha todos os campos."});
     }
 
     const db = client.db(DB_NAME);
@@ -79,7 +80,7 @@ app.post('/login', async (req, res) => {
     let count = await collection.countDocuments({usuario : usuario});
 
     if (count == 0) {
-        return res.json({message : 'Usuario ou senha inválidos.'})
+        return res.status(401).json({message : 'Usuario ou senha inválidos.'});
     }
 
     let dados = await collection.findOne({usuario : usuario});
@@ -89,11 +90,11 @@ app.post('/login', async (req, res) => {
     if (verify) {
         let token = jwt.sign({_id: dados._id}, JWT_SECRET, {expiresIn: '1h'});
 
-        return res.json({message : token});
+        return res.status(200).json({token : token});     
     }
 
-    res.json({message : "Usuario ou senha inválidos"});
-})
+    res.status(401).json({message : 'Usuario ou senha inválidos.'});
+});
 
 app.get('/dados', async (req, res) => {
     const auth = req.headers.authorization;
